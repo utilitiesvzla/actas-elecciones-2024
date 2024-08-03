@@ -1,14 +1,18 @@
-import pLimit from 'p-limit';
-
 const data = require('./static/original/RESULTADOS_2024_JSON_V1.json');
 
 const max = 50;
 
-const limit = pLimit(max);
+let actas: any[] = [];
 
-const response = await Promise.all(
-  data.map(async (item: any, index: number) => {
-    return limit(async () => {
+const chunks = data.reduce((acc: any[], item: any, index: number) => {
+  const chunkIndex = Math.floor(index / max);
+  acc[chunkIndex] = [...(acc[chunkIndex] || []), item];
+  return acc;
+}, []);
+
+for (const [number, chunk] of chunks.entries()) {
+  const response = await Promise.all(
+    chunk.map(async (item: any, i: number) => {
       const fileName = item.URL.split('/').pop();
       const filePath = `./static/actas/${fileName}`;
 
@@ -26,14 +30,19 @@ const response = await Promise.all(
 
       await Bun.write(filePath, buffer);
 
+      const index = i + 1 + number * max;
+
       if (index % max === 0) {
         const percentage = ((index + 1) / data.length) * 100;
-        console.log(`[${index + 1}/${data.length}] ${percentage.toFixed(2)}%`);
+        console.log(`[${index}/${data.length}] ${percentage.toFixed(2)}%`);
       }
 
       return newItem
-    });
-  })
-);
+    })
+  );
 
-Bun.write('./static/actas.json', JSON.stringify(response, null, 2));
+  actas = [...actas, ...response];
+}
+
+
+Bun.write('./static/actas.json', JSON.stringify(actas, null, 2));
