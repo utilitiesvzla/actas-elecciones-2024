@@ -1,3 +1,5 @@
+import { readdir } from 'node:fs/promises';
+
 const data = require('./static/original/RESULTADOS_2024_JSON_V1.json');
 
 const max = 50;
@@ -10,6 +12,8 @@ const chunks = data.reduce((acc: any[], item: any, index: number) => {
   return acc;
 }, []);
 
+const existingImages = await readdir('./static/actas');
+
 for (const [number, chunk] of chunks.entries()) {
   const response = await Promise.all(
     chunk.map(async (item: any, i: number) => {
@@ -21,7 +25,7 @@ for (const [number, chunk] of chunks.entries()) {
         URL: filePath
       };
 
-      if (await Bun.file(filePath).exists()) {
+      if (existingImages.includes(fileName)) {
         return newItem;
       }
 
